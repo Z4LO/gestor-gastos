@@ -1,0 +1,165 @@
+/* ===== PALETA DE COLORES MEJORADA ===== */
+/* Usando una paleta cohesiva basada en azules y complementarios */
+
+:root {
+  /* === COLORES PRIMARIOS === */
+  --color-primary: #2563eb;        /* Azul principal */
+  --color-primary-light: #3b82f6;  /* Azul claro */
+  --color-primary-dark: #1d4ed8;   /* Azul oscuro */
+  --color-primary-alpha: rgba(37, 99, 235, 0.1);
+
+  /* === COLORES SECUNDARIOS === */
+  --color-secondary: #6366f1;      /* Índigo */
+  --color-secondary-light: #8b5cf6; /* Índigo claro */
+  --color-secondary-dark: #4f46e5;  /* Índigo oscuro */
+
+  /* === COLORES DE ESTADO === */
+  --color-success: #10b981;        /* Verde esmeralda */
+  --color-success-light: #34d399;  
+  --color-success-dark: #059669;
+  --color-success-alpha: rgba(16, 185, 129, 0.1);
+
+  --color-danger: #ef4444;         /* Rojo coral */
+  --color-danger-light: #f87171;
+  --color-danger-dark: #dc2626;
+  --color-danger-alpha: rgba(239, 68, 68, 0.1);
+
+  --color-warning: #f59e0b;        /* Ámbar */
+  --color-warning-light: #fbbf24;
+  --color-warning-dark: #d97706;
+  --color-warning-alpha: rgba(245, 158, 11, 0.1);
+
+  --color-info: #06b6d4;           /* Cian */
+  --color-info-light: #22d3ee;
+  --color-info-dark: #0891b2;
+  --color-info-alpha: rgba(6, 182, 212, 0.1);
+
+  /* === COLORES NEUTROS - TEMA CLARO === */
+  --color-background: #f8fafc;     /* Fondo principal */
+  --color-background-secondary: #f1f5f9; /* Fondo secundario */
+  --color-surface: #ffffff;        /* Superficies (cards, modales) */
+  --color-surface-hover: #f8fafc;  /* Hover en superficies */
+  
+  --color-text-primary: #1e293b;   /* Texto principal */
+  --color-text-secondary: #64748b; /* Texto secundario */
+  --color-text-muted: #94a3b8;     /* Texto apagado */
+  
+  --color-border: #e2e8f0;         /* Bordes */
+  --color-border-light: #f1f5f9;   /* Bordes claros */
+  --color-border-dark: #cbd5e1;    /* Bordes oscuros */
+
+  /* === SOMBRAS === */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* === GRADIENTES === */
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  --gradient-success: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-light) 100%);
+  --gradient-danger: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-light) 100%);
+  --gradient-warning: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-light) 100%);
+  --gradient-background: linear-gradient(135deg, #e0e7ff 0%, #f0f9ff 50%, #fef3c7 100%);
+
+  /* === TRANSICIONES === */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* === ESPACIADO === */
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+}
+
+/* ===== TEMA OSCURO ===== */
+[data-theme="dark"] {
+  /* === COLORES PRIMARIOS (más suaves en oscuro) === */
+  --color-primary: #3b82f6;
+  --color-primary-light: #60a5fa;
+  --color-primary-dark: #2563eb;
+
+  /* === COLORES NEUTROS - TEMA OSCURO === */
+  --color-background: #0f172a;     /* Fondo principal oscuro */
+  --color-background-secondary: #1e293b; /* Fondo secundario oscuro */
+  --color-surface: #334155;        /* Superficies oscuras */
+  --color-surface-hover: #475569;  /* Hover en superficies oscuras */
+  
+  --color-text-primary: #f1f5f9;   /* Texto principal claro */
+  --color-text-secondary: #cbd5e1; /* Texto secundario claro */
+  --color-text-muted: #94a3b8;     /* Texto apagado */
+  
+  --color-border: #475569;         /* Bordes oscuros */
+  --color-border-light: #374151;   /* Bordes claros en tema oscuro */
+  --color-border-dark: #6b7280;    /* Bordes oscuros en tema oscuro */
+
+  /* === SOMBRAS OSCURAS === */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+
+  /* === GRADIENTES OSCUROS === */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #656d79 100%);
+}
+
+/* ===== APLICACIÓN DE TEMA BASE ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: var(--gradient-background);
+  min-height: 100vh;
+  color: var(--color-text-primary);
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+
+/* === UTILIDADES DE TEMA === */
+.theme-transition {
+  transition: background-color var(--transition-normal), 
+              color var(--transition-normal), 
+              border-color var(--transition-normal),
+              box-shadow var(--transition-normal);
+}
+
+/* === BOTÓN DE TOGGLE TEMA === */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  transform: scale(1.05);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-primary);
+  transition: all var(--transition-normal);
+}
+
+.theme-toggle:hover svg {
+  color: var(--color-primary);
+}

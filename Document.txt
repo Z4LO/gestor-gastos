@@ -1,0 +1,266 @@
+# 🚀 Sistema de Gestión de Gastos Personales
+
+## 📋 Requisitos Previos
+
+Antes de comenzar, asegúrate de tener instalado en tu PC con Windows:
+
+1. **Node.js** (versión 16 o superior)
+   - Descargar desde: https://nodejs.org/
+   - Verificar instalación: `node --version` y `npm --version`
+
+2. **MySQL o MariaDB**
+   - MySQL: https://dev.mysql.com/downloads/mysql/
+   - MariaDB: https://mariadb.org/download/
+   - Durante la instalación, recuerda la contraseña del usuario `root`
+
+3. **HeidiSQL** (para gestionar la base de datos)
+   - Descargar desde: https://www.heidisql.com/download.php
+
+## 📁 Estructura del Proyecto
+
+Crea la siguiente estructura de carpetas:
+
+```
+gastos-personales/
+├── backend/
+│   ├── package.json
+│   ├── server.js
+│   └── .env
+└── frontend/
+    ├── package.json
+    ├── public/
+    │   └── index.html
+    └── src/
+        ├── App.js
+        ├── App.css
+        ├── index.js
+        └── components/
+            ├── TransactionForm.js
+            ├── TransactionList.js
+            ├── Dashboard.js
+            └── DateRangeFilter.js
+```
+
+## 🛠️ Paso a Paso de Instalación
+
+### Paso 1: Configurar la Base de Datos
+
+1. **Abrir HeidiSQL** y conectar a tu servidor MySQL/MariaDB local
+   - Host: `localhost`
+   - Usuario: `root`
+   - Contraseña: (la que configuraste durante la instalación)
+   - Puerto: `3306` (por defecto)
+
+2. **Crear la base de datos**:
+   - Clic derecho en la conexión → "Crear nuevo" → "Base de datos"
+   - Nombre: `gastos_personales`
+   - Charset: `utf8mb4`
+   - Collation: `utf8mb4_unicode_ci`
+
+3. **Ejecutar el script SQL**:
+   - Seleccionar la base de datos `gastos_personales`
+   - Copiar y ejecutar el contenido del archivo `database_schema.sql`
+
+### Paso 2: Configurar el Backend
+
+1. **Crear la carpeta del backend**:
+```bash
+mkdir gastos-personales
+cd gastos-personales
+mkdir backend
+cd backend
+```
+
+2. **Crear el archivo package.json** con el contenido proporcionado
+
+3. **Crear el archivo .env**:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=tu_contraseña_mysql
+DB_NAME=gastos_personales
+PORT=3001
+```
+*(Reemplaza `tu_contraseña_mysql` con tu contraseña real)*
+
+4. **Crear el archivo server.js** con el código del servidor
+
+5. **Instalar dependencias**:
+```bash
+npm install
+```
+
+6. **Probar el backend**:
+```bash
+npm run dev
+```
+*Deberías ver: "Servidor ejecutándose en puerto 3001" y "Conectado a la base de datos MySQL"*
+
+### Paso 3: Configurar el Frontend
+
+1. **Abrir una nueva terminal** y navegar a la carpeta principal:
+```bash
+cd ../
+mkdir frontend
+cd frontend
+```
+
+2. **Crear aplicación React**:
+```bash
+npx create-react-app .
+```
+
+3. **Instalar dependencias adicionales**:
+```bash
+npm install axios chart.js react-chartjs-2 react-datepicker react-modal lucide-react
+```
+
+4. **Reemplazar archivos**:
+   - Reemplazar `package.json` con la versión proporcionada
+   - Reemplazar `src/App.js` con el código proporcionado
+   - Reemplazar `src/App.css` con los estilos proporcionados
+   - Agregar los estilos adicionales al final de `App.css`
+
+5. **Crear componentes**:
+   - Crear carpeta `src/components/`
+   - Crear archivos de componentes con sus respectivos códigos
+
+6. **Actualizar src/index.js**:
+```javascript
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './App.css';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+7. **Actualizar public/index.html**:
+```html
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Sistema de gestión de gastos personales" />
+    <title>Gestión de Gastos</title>
+  </head>
+  <body>
+    <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+## 🚀 Ejecución del Sistema
+
+### Para ejecutar el sistema completo:
+
+1. **Terminal 1 - Backend**:
+```bash
+cd backend
+npm run dev
+```
+
+2. **Terminal 2 - Frontend**:
+```bash
+cd frontend
+npm start
+```
+
+3. **Abrir navegador**:
+   - Frontend: http://localhost:3000
+   - API Backend: http://localhost:3001/api
+
+## 🔧 Configuración de HeidiSQL
+
+Para visualizar los datos:
+
+1. **Conectar a la base de datos** `gastos_personales`
+2. **Explorar tablas**:
+   - `categorias`: Ver categorías disponibles
+   - `transacciones`: Ver todas las transacciones
+   - `vista_transacciones_completas`: Vista completa con nombres de categorías
+   - `vista_resumen_mensual`: Resumen por mes
+   - `vista_resumen_categorias`: Resumen por categorías
+
+## 🎯 Funcionalidades del Sistema
+
+### ✅ Dashboard
+- Gráficos de torta para distribución de gastos e ingresos
+- Gráfico de barras comparativo por categorías
+- Gráfico de líneas con tendencia anual
+- Resumen detallado por categorías
+
+### ✅ Gestión de Transacciones
+- Crear, editar y eliminar transacciones
+- Categorización automática
+- Filtros por fecha y tipo
+- Lista interactiva con acciones rápidas
+
+### ✅ Reportes
+- Filtrado por rangos de fecha
+- Botones de filtrado rápido (hoy, semana, mes, etc.)
+- Cálculo automático de balances
+- Visualización en tiempo real
+
+## 🛠️ Solución de Problemas
+
+### Error de Conexión a la Base de Datos
+- Verificar que MySQL/MariaDB esté ejecutándose
+- Comprobar credenciales en el archivo `.env`
+- Asegurarse de que la base de datos `gastos_personales` existe
+
+### Error "CORS"
+- El backend ya incluye configuración CORS
+- Verificar que el backend esté ejecutándose en puerto 3001
+
+### Error de Puerto en Uso
+- Cambiar puerto en `.env` (backend) o `package.json` (frontend)
+- Verificar procesos ejecutándose: `netstat -ano | findstr :3001`
+
+### Problemas con Gráficos
+- Verificar que Chart.js esté instalado correctamente
+- Comprobar consola del navegador para errores JavaScript
+
+## 📦 Scripts Útiles
+
+### Backend:
+```bash
+npm start          # Ejecutar en producción
+npm run dev        # Ejecutar en desarrollo con nodemon
+```
+
+### Frontend:
+```bash
+npm start          # Servidor de desarrollo
+npm run build      # Compilar para producción
+npm test           # Ejecutar tests
+```
+
+## 🔒 Seguridad
+
+- Los datos se almacenan localmente en tu PC
+- No hay conexión a servicios externos
+- Backup recomendado de la base de datos MySQL
+
+## 📈 Próximas Mejoras
+
+- Exportación a Excel/PDF
+- Categorías personalizables
+- Metas de ahorro
+- Notificaciones de límites
+- Modo oscuro
+
+---
+
+**¡Tu sistema de gestión de gastos está listo!** 🎉
+
+Accede a http://localhost:3000 para comenzar a usar la aplicación.

@@ -1,0 +1,382 @@
+/* Estilos para Gastos Recurrentes */
+.recurring-expenses {
+  padding: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  gap: 1rem;
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-normal);
+}
+
+.header-content h2 {
+  margin: 0 0 0.75rem 0;
+  color: var(--color-text-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: color var(--transition-normal);
+}
+
+.header-description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: color var(--transition-normal);
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.alert-info {
+  background-color: var(--color-info-alpha);
+  border: 1px solid var(--color-info);
+  color: var(--color-info-dark);
+}
+
+.alert strong {
+  font-weight: 600;
+}
+
+.recurring-expenses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.expense-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-normal);
+}
+
+.expense-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.expense-item.inactive {
+  opacity: 0.6;
+  background-color: var(--color-background-secondary);
+}
+
+.expense-main {
+  flex: 1;
+}
+
+.expense-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.expense-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.expense-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: color var(--transition-normal);
+}
+
+.expense-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.ingreso {
+  background-color: var(--color-success-alpha);
+  color: var(--color-success-dark);
+}
+
+.badge.egreso {
+  background-color: var(--color-danger-alpha);
+  color: var(--color-danger-dark);
+}
+
+.badge.inactive {
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-muted);
+}
+
+.expense-details {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-normal);
+}
+
+.last-processed {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  transition: color var(--transition-normal);
+}
+
+.expense-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-left: 1rem;
+  align-items: center;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid transparent;
+  /* Los backgrounds se definen en cada variante para evitar flickering */
+}
+
+.btn-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-icon.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-icon.btn-primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-border-light);
+}
+
+.btn-icon.btn-warning {
+  background: var(--color-warning);
+  color: white;
+}
+
+.btn-icon.btn-warning:hover {
+  background: var(--color-warning-dark);
+  border-color: var(--color-border-light);
+}
+
+.btn-icon.btn-success {
+  background: var(--color-success);
+  color: white;
+}
+
+.btn-icon.btn-success:hover {
+  background: var(--color-success-dark);
+  border-color: var(--color-border-light);
+}
+
+.btn-icon.btn-danger {
+  background: var(--color-danger);
+  color: white;
+}
+
+.btn-icon.btn-danger:hover {
+  background: var(--color-danger-dark);
+  border-color: var(--color-border-light);
+}
+
+/* Tooltips para los botones */
+.btn-icon[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+.btn-icon {
+  position: relative;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-normal);
+}
+
+.empty-state svg {
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+  transition: color var(--transition-normal);
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  transition: color var(--transition-normal);
+}
+
+.empty-state p {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* Estilos para formulario de gastos recurrentes */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.checkmark {
+  display: none; /* Usamos el checkbox nativo por simplicidad */
+}
+
+.recurring-options {
+  background-color: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  padding: 1rem;
+  margin-top: 0.5rem;
+  transition: all var(--transition-normal);
+}
+
+.form-text {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  transition: color var(--transition-normal);
+}
+
+/* Animación de rotación para el botón de procesar */
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mejoras responsivas para gastos recurrentes */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.5rem;
+  }
+  
+  .header-content h2 {
+    font-size: 1.75rem;
+  }
+  
+  .header-description {
+    font-size: 0.9rem;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .expense-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .expense-actions {
+    margin-left: 0;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .expense-details {
+    gap: 1rem;
+  }
+  
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+  }
+}

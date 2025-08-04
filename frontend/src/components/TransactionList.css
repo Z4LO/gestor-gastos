@@ -1,0 +1,130 @@
+/* Transaction List Styles */
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-lg);
+  transition: all var(--transition-normal);
+  border: 2px solid transparent;
+}
+
+.transaction-item:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.transaction-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.icon-income {
+  color: var(--color-success);
+}
+
+.icon-expense {
+  color: var(--color-danger);
+}
+
+.transaction-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.transaction-description {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  transition: color var(--transition-normal);
+}
+
+.transaction-category {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.transaction-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.transaction-date {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-normal);
+}
+
+.transaction-amount {
+  text-align: right;
+  margin-right: 1rem;
+}
+
+.amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.amount.ingreso {
+  color: var(--color-success);
+}
+
+.amount.egreso {
+  color: var(--color-danger);
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Responsive Transactions */
+@media (max-width: 768px) {
+  .transaction-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .transaction-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .transaction-amount {
+    text-align: left;
+    margin-right: 0;
+  }
+  
+  .transaction-actions {
+    align-self: flex-end;
+  }
+}
