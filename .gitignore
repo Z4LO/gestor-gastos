@@ -59,3 +59,7 @@ Thumbs.db
 # Cache
 .cache/
 .parcel-cache
+
+# Backup files (if needed in future)
+backup-*.json
+last-backup.json

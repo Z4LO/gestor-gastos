@@ -65,8 +65,7 @@ const TransactionForm = ({ transaction, categories, onSubmit, onCancel }) => {
           activo: true
         };
 
-        const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
-        await fetch(`${API_BASE_URL}/gastos-recurrentes`, {
+        await fetch('http://localhost:3001/api/gastos-recurrentes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

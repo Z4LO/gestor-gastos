@@ -1,6 +1,5 @@
 const express = require('express');
 const mysql = require('mysql2');
-const { Pool } = require('pg');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -8,217 +7,103 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://gastos-frontend-7362.onrender.com'] 
-    : 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
-// Configuración de base de datos (MySQL local y PostgreSQL para producción)
-let db;
-
-if (process.env.DATABASE_URL) {
-  // PostgreSQL para producción (Render)
-  db = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-} else {
-  // MySQL para desarrollo local
-  db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'gastos_personales',
-    port: process.env.DB_PORT || 3306,
-    authPlugins: {
-      mysql_native_password: () => require('mysql2/lib/auth_plugins').mysql_native_password
-    }
-  });
-}
-
-// Función para ejecutar queries que funciona con ambas bases de datos
-const executeQuery = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      db.query(query, params, (err, result) => {
-        if (err) {
-          console.error('PostgreSQL Error:', err);
-          reject(err);
-        } else {
-          resolve(result.rows || result);
-        }
-      });
-    } else {
-      // MySQL
-      db.query(query, params, (err, result) => {
-        if (err) {
-          console.error('MySQL Error:', err);
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
-    }
-  });
-};
+// Configuración de la base de datos
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'gastos_personales',
+  port: process.env.DB_PORT || 3306,
+  authPlugins: {
+    mysql_native_password: () => require('mysql2/lib/auth_plugins').mysql_native_password
+  }
+});
 
 // Conectar a la base de datos
-if (process.env.DATABASE_URL) {
-  // PostgreSQL - no necesita conexión explícita
-  console.log('Usando PostgreSQL (Render)');
-} else {
-  // MySQL
-  db.connect((err) => {
-    if (err) {
-      console.error('Error conectando a la base de datos:', err);
-      return;
-    }
-    console.log('Conectado a la base de datos MySQL');
-  });
-}
+db.connect((err) => {
+  if (err) {
+    console.error('Error conectando a la base de datos:', err);
+    return;
+  }
+  console.log('Conectado a la base de datos MySQL');
+});
 
 // Crear tablas si no existen
-const createTables = async () => {
-  try {
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL queries
-      const categoriesTable = `
-        CREATE TABLE IF NOT EXISTS categorias (
-          id SERIAL PRIMARY KEY,
-          nombre VARCHAR(100) NOT NULL UNIQUE,
-          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
-          color VARCHAR(7) DEFAULT '#3498db',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `;
+const createTables = () => {
+  const categoriesTable = `
+    CREATE TABLE IF NOT EXISTS categorias (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nombre VARCHAR(100) NOT NULL UNIQUE,
+      tipo ENUM('ingreso', 'egreso') NOT NULL,
+      color VARCHAR(7) DEFAULT '#3498db',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
 
-      const transactionsTable = `
-        CREATE TABLE IF NOT EXISTS transacciones (
-          id SERIAL PRIMARY KEY,
-          descripcion VARCHAR(255) NOT NULL,
-          monto DECIMAL(10,2) NOT NULL,
-          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
-          categoria_id INTEGER REFERENCES categorias(id),
-          fecha DATE NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `;
+  const transactionsTable = `
+    CREATE TABLE IF NOT EXISTS transacciones (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      descripcion VARCHAR(255) NOT NULL,
+      monto DECIMAL(10,2) NOT NULL,
+      tipo ENUM('ingreso', 'egreso') NOT NULL,
+      categoria_id INT,
+      fecha DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+    )
+  `;
 
-      const recurringExpensesTable = `
-        CREATE TABLE IF NOT EXISTS gastos_recurrentes (
-          id SERIAL PRIMARY KEY,
-          descripcion VARCHAR(255) NOT NULL,
-          monto DECIMAL(10,2) NOT NULL,
-          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
-          categoria_id INTEGER REFERENCES categorias(id),
-          dia_mes INTEGER NOT NULL DEFAULT 1,
-          activo BOOLEAN DEFAULT TRUE,
-          ultimo_procesado DATE NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
-        )
-      `;
+  const recurringExpensesTable = `
+    CREATE TABLE IF NOT EXISTS gastos_recurrentes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      descripcion VARCHAR(255) NOT NULL,
+      monto DECIMAL(10,2) NOT NULL,
+      tipo ENUM('ingreso', 'egreso') NOT NULL,
+      categoria_id INT,
+      dia_mes INT NOT NULL DEFAULT 1,
+      activo BOOLEAN DEFAULT TRUE,
+      ultimo_procesado DATE NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (categoria_id) REFERENCES categorias(id),
+      CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
+    )
+  `;
 
-      await executeQuery(categoriesTable);
-      await executeQuery(transactionsTable);
-      await executeQuery(recurringExpensesTable);
+  db.query(categoriesTable, (err) => {
+    if (err) console.error('Error creando tabla categorias:', err);
+  });
 
-      // Insertar categorías por defecto para PostgreSQL
-      const insertDefault = `
-        INSERT INTO categorias (nombre, tipo, color) VALUES 
-        ($1, $2, $3), ($4, $5, $6), ($7, $8, $9), ($10, $11, $12), ($13, $14, $15),
-        ($16, $17, $18), ($19, $20, $21), ($22, $23, $24), ($25, $26, $27), ($28, $29, $30)
-        ON CONFLICT (nombre) DO NOTHING
-      `;
-      
-      await executeQuery(insertDefault, [
-        'Salario', 'ingreso', '#27ae60',
-        'Freelance', 'ingreso', '#2ecc71',
-        'Inversiones', 'ingreso', '#16a085',
-        'Alimentos', 'egreso', '#e74c3c',
-        'Transporte', 'egreso', '#f39c12',
-        'Entretenimiento', 'egreso', '#9b59b6',
-        'Salud', 'egreso', '#e67e22',
-        'Educación', 'egreso', '#3498db',
-        'Servicios', 'egreso', '#34495e',
-        'Compras', 'egreso', '#95a5a6'
-      ]);
+  db.query(transactionsTable, (err) => {
+    if (err) console.error('Error creando tabla transacciones:', err);
+  });
 
-    } else {
-      // MySQL queries (original)
-      const categoriesTable = `
-        CREATE TABLE IF NOT EXISTS categorias (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          nombre VARCHAR(100) NOT NULL UNIQUE,
-          tipo ENUM('ingreso', 'egreso') NOT NULL,
-          color VARCHAR(7) DEFAULT '#3498db',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `;
+  db.query(recurringExpensesTable, (err) => {
+    if (err) console.error('Error creando tabla gastos_recurrentes:', err);
+  });
 
-      const transactionsTable = `
-        CREATE TABLE IF NOT EXISTS transacciones (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          descripcion VARCHAR(255) NOT NULL,
-          monto DECIMAL(10,2) NOT NULL,
-          tipo ENUM('ingreso', 'egreso') NOT NULL,
-          categoria_id INT,
-          fecha DATE NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id)
-        )
-      `;
+  // Insertar categorías por defecto
+  const defaultCategories = [
+    ['Salario', 'ingreso', '#27ae60'],
+    ['Freelance', 'ingreso', '#2ecc71'],
+    ['Inversiones', 'ingreso', '#16a085'],
+    ['Alimentos', 'egreso', '#e74c3c'],
+    ['Transporte', 'egreso', '#f39c12'],
+    ['Entretenimiento', 'egreso', '#9b59b6'],
+    ['Salud', 'egreso', '#e67e22'],
+    ['Educación', 'egreso', '#3498db'],
+    ['Servicios', 'egreso', '#34495e'],
+    ['Compras', 'egreso', '#95a5a6']
+  ];
 
-      const recurringExpensesTable = `
-        CREATE TABLE IF NOT EXISTS gastos_recurrentes (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          descripcion VARCHAR(255) NOT NULL,
-          monto DECIMAL(10,2) NOT NULL,
-          tipo ENUM('ingreso', 'egreso') NOT NULL,
-          categoria_id INT,
-          dia_mes INT NOT NULL DEFAULT 1,
-          activo BOOLEAN DEFAULT TRUE,
-          ultimo_procesado DATE NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id),
-          CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
-        )
-      `;
-
-      await executeQuery(categoriesTable);
-      await executeQuery(transactionsTable);
-      await executeQuery(recurringExpensesTable);
-
-      // Insertar categorías por defecto para MySQL
-      const defaultCategories = [
-        ['Salario', 'ingreso', '#27ae60'],
-        ['Freelance', 'ingreso', '#2ecc71'],
-        ['Inversiones', 'ingreso', '#16a085'],
-        ['Alimentos', 'egreso', '#e74c3c'],
-        ['Transporte', 'egreso', '#f39c12'],
-        ['Entretenimiento', 'egreso', '#9b59b6'],
-        ['Salud', 'egreso', '#e67e22'],
-        ['Educación', 'egreso', '#3498db'],
-        ['Servicios', 'egreso', '#34495e'],
-        ['Compras', 'egreso', '#95a5a6']
-      ];
-
-      const insertDefault = `INSERT IGNORE INTO categorias (nombre, tipo, color) VALUES ?`;
-      await executeQuery(insertDefault, [defaultCategories]);
-    }
-    
-    console.log('Tablas creadas y datos iniciales insertados');
-  } catch (err) {
-    console.error('Error creando tablas:', err);
-  }
+  const insertDefault = `INSERT IGNORE INTO categorias (nombre, tipo, color) VALUES ?`;
+  db.query(insertDefault, [defaultCategories], (err) => {
+    if (err) console.error('Error insertando categorías por defecto:', err);
+  });
 };
 
 createTables();
@@ -226,15 +111,14 @@ createTables();
 // RUTAS DE LA API
 
 // Obtener todas las categorías
-app.get('/api/categorias', async (req, res) => {
-  try {
-    const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
-    const results = await executeQuery(query);
+app.get('/api/categorias', (req, res) => {
+  const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
     res.json(results);
-  } catch (err) {
-    console.error('Error en GET /api/categorias:', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 // Crear nueva categoría
@@ -251,83 +135,54 @@ app.post('/api/categorias', (req, res) => {
 });
 
 // Obtener todas las transacciones
-app.get('/api/transacciones', async (req, res) => {
-  try {
-    const { fechaInicio, fechaFin, tipo } = req.query;
-    
-    let query = `
-      SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
-      FROM transacciones t
-      JOIN categorias c ON t.categoria_id = c.id
-      WHERE 1=1
-    `;
-    
-    const params = [];
-    let paramIndex = 1;
-    
-    if (fechaInicio) {
-      if (process.env.DATABASE_URL) {
-        query += ` AND t.fecha >= $${paramIndex}`;
-      } else {
-        query += ' AND t.fecha >= ?';
-      }
-      params.push(fechaInicio);
-      paramIndex++;
-    }
-    
-    if (fechaFin) {
-      if (process.env.DATABASE_URL) {
-        query += ` AND t.fecha <= $${paramIndex}`;
-      } else {
-        query += ' AND t.fecha <= ?';
-      }
-      params.push(fechaFin);
-      paramIndex++;
-    }
-    
-    if (tipo) {
-      if (process.env.DATABASE_URL) {
-        query += ` AND t.tipo = $${paramIndex}`;
-      } else {
-        query += ' AND t.tipo = ?';
-      }
-      params.push(tipo);
-    }
-    
-    query += ' ORDER BY t.fecha DESC, t.created_at DESC';
-    
-    const results = await executeQuery(query, params);
-    res.json(results);
-  } catch (err) {
-    console.error('Error en GET /api/transacciones:', err);
-    res.status(500).json({ error: err.message });
+app.get('/api/transacciones', (req, res) => {
+  const { fechaInicio, fechaFin, tipo } = req.query;
+  
+  let query = `
+    SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
+    FROM transacciones t
+    JOIN categorias c ON t.categoria_id = c.id
+    WHERE 1=1
+  `;
+  
+  const params = [];
+  
+  if (fechaInicio) {
+    query += ' AND t.fecha >= ?';
+    params.push(fechaInicio);
   }
+  
+  if (fechaFin) {
+    query += ' AND t.fecha <= ?';
+    params.push(fechaFin);
+  }
+  
+  if (tipo) {
+    query += ' AND t.tipo = ?';
+    params.push(tipo);
+  }
+  
+  query += ' ORDER BY t.fecha DESC, t.created_at DESC';
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
 });
 
 // Crear nueva transacción
-app.post('/api/transacciones', async (req, res) => {
-  try {
-    const { descripcion, monto, tipo, categoria_id, fecha } = req.body;
-    
-    let query, params;
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES ($1, $2, $3, $4, $5) RETURNING id';
-      params = [descripcion, monto, tipo, categoria_id, fecha];
-    } else {
-      // MySQL
-      query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES (?, ?, ?, ?, ?)';
-      params = [descripcion, monto, tipo, categoria_id, fecha];
+app.post('/api/transacciones', (req, res) => {
+  const { descripcion, monto, tipo, categoria_id, fecha } = req.body;
+  const query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES (?, ?, ?, ?, ?)';
+  
+  db.query(query, [descripcion, monto, tipo, categoria_id, fecha], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
     }
-    
-    const result = await executeQuery(query, params);
-    const insertId = process.env.DATABASE_URL ? result[0].id : result.insertId;
-    
-    res.json({ id: insertId, descripcion, monto, tipo, categoria_id, fecha });
-  } catch (err) {
-    console.error('Error en POST /api/transacciones:', err);
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ id: result.insertId, descripcion, monto, tipo, categoria_id, fecha });
+  });
 });
 
 // Actualizar transacción
@@ -399,149 +254,104 @@ app.delete('/api/categorias/:id', (req, res) => {
 
 
 // Obtener resumen de gastos por categoría
-app.get('/api/resumen/categorias', async (req, res) => {
-  try {
-    const { fechaInicio, fechaFin } = req.query;
-    
-    let query = `
-      SELECT 
-        c.nombre,
-        c.color,
-        t.tipo,
-        SUM(t.monto) as total,
-        COUNT(t.id) as cantidad
-      FROM transacciones t
-      JOIN categorias c ON t.categoria_id = c.id
-      WHERE 1=1
-    `;
-    
-    const params = [];
-    let paramIndex = 1;
-    
-    if (fechaInicio) {
-      if (process.env.DATABASE_URL) {
-        query += ` AND t.fecha >= $${paramIndex}`;
-      } else {
-        query += ' AND t.fecha >= ?';
-      }
-      params.push(fechaInicio);
-      paramIndex++;
-    }
-    
-    if (fechaFin) {
-      if (process.env.DATABASE_URL) {
-        query += ` AND t.fecha <= $${paramIndex}`;
-      } else {
-        query += ' AND t.fecha <= ?';
-      }
-      params.push(fechaFin);
-    }
-    
-    query += ' GROUP BY c.id, c.nombre, c.color, t.tipo ORDER BY total DESC';
-    
-    const results = await executeQuery(query, params);
-    res.json(results);
-  } catch (err) {
-    console.error('Error en GET /api/resumen/categorias:', err);
-    res.status(500).json({ error: err.message });
+app.get('/api/resumen/categorias', (req, res) => {
+  const { fechaInicio, fechaFin } = req.query;
+  
+  let query = `
+    SELECT 
+      c.nombre,
+      c.color,
+      t.tipo,
+      SUM(t.monto) as total,
+      COUNT(t.id) as cantidad
+    FROM transacciones t
+    JOIN categorias c ON t.categoria_id = c.id
+    WHERE 1=1
+  `;
+  
+  const params = [];
+  
+  if (fechaInicio) {
+    query += ' AND t.fecha >= ?';
+    params.push(fechaInicio);
   }
+  
+  if (fechaFin) {
+    query += ' AND t.fecha <= ?';
+    params.push(fechaFin);
+  }
+  
+  query += ' GROUP BY c.id, c.nombre, c.color, t.tipo ORDER BY total DESC';
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
 });
 
 // Obtener resumen mensual
-app.get('/api/resumen/mensual', async (req, res) => {
-  try {
-    const { ano } = req.query;
-    
-    let query;
-    const params = [];
-    
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      query = `
-        SELECT 
-          EXTRACT(MONTH FROM fecha) as mes,
-          EXTRACT(YEAR FROM fecha) as ano,
-          tipo,
-          SUM(monto) as total
-        FROM transacciones
-        WHERE 1=1
-      `;
-      
-      if (ano) {
-        query += ' AND EXTRACT(YEAR FROM fecha) = $1';
-        params.push(ano);
-      }
-      
-      query += ' GROUP BY EXTRACT(YEAR FROM fecha), EXTRACT(MONTH FROM fecha), tipo ORDER BY ano DESC, mes DESC';
-    } else {
-      // MySQL
-      query = `
-        SELECT 
-          MONTH(fecha) as mes,
-          YEAR(fecha) as ano,
-          tipo,
-          SUM(monto) as total
-        FROM transacciones
-        WHERE 1=1
-      `;
-      
-      if (ano) {
-        query += ' AND YEAR(fecha) = ?';
-        params.push(ano);
-      }
-      
-      query += ' GROUP BY YEAR(fecha), MONTH(fecha), tipo ORDER BY ano DESC, mes DESC';
-    }
-    
-    const results = await executeQuery(query, params);
-    res.json(results);
-  } catch (err) {
-    console.error('Error en GET /api/resumen/mensual:', err);
-    res.status(500).json({ error: err.message });
+app.get('/api/resumen/mensual', (req, res) => {
+  const { ano } = req.query;
+  
+  let query = `
+    SELECT 
+      MONTH(fecha) as mes,
+      YEAR(fecha) as ano,
+      tipo,
+      SUM(monto) as total
+    FROM transacciones
+    WHERE 1=1
+  `;
+  
+  const params = [];
+  
+  if (ano) {
+    query += ' AND YEAR(fecha) = ?';
+    params.push(ano);
   }
+  
+  query += ' GROUP BY YEAR(fecha), MONTH(fecha), tipo ORDER BY ano DESC, mes DESC';
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
 });
 
 // RUTAS PARA GASTOS RECURRENTES
 
 // Obtener todos los gastos recurrentes
-app.get('/api/gastos-recurrentes', async (req, res) => {
-  try {
-    const query = `
-      SELECT gr.*, c.nombre as categoria_nombre, c.color as categoria_color
-      FROM gastos_recurrentes gr
-      JOIN categorias c ON gr.categoria_id = c.id
-      ORDER BY gr.activo DESC, gr.dia_mes ASC
-    `;
-    
-    const results = await executeQuery(query);
+app.get('/api/gastos-recurrentes', (req, res) => {
+  const query = `
+    SELECT gr.*, c.nombre as categoria_nombre, c.color as categoria_color
+    FROM gastos_recurrentes gr
+    JOIN categorias c ON gr.categoria_id = c.id
+    ORDER BY gr.activo DESC, gr.dia_mes ASC
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
     res.json(results);
-  } catch (err) {
-    console.error('Error en GET /api/gastos-recurrentes:', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 // Crear nuevo gasto recurrente
-app.post('/api/gastos-recurrentes', async (req, res) => {
-  try {
-    const { descripcion, monto, tipo, categoria_id, dia_mes, activo = true } = req.body;
-    
-    let query, params;
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
-      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo];
-    } else {
-      // MySQL
-      query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES (?, ?, ?, ?, ?, ?)';
-      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo];
+app.post('/api/gastos-recurrentes', (req, res) => {
+  const { descripcion, monto, tipo, categoria_id, dia_mes, activo = true } = req.body;
+  const query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES (?, ?, ?, ?, ?, ?)';
+  
+  db.query(query, [descripcion, monto, tipo, categoria_id, dia_mes, activo], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
     }
-    
-    const result = await executeQuery(query, params);
-    const insertId = process.env.DATABASE_URL ? result[0].id : result.insertId;
-    
     res.json({ 
-      id: insertId, 
+      id: result.insertId, 
       descripcion, 
       monto, 
       tipo, 
@@ -549,69 +359,40 @@ app.post('/api/gastos-recurrentes', async (req, res) => {
       dia_mes, 
       activo 
     });
-  } catch (err) {
-    console.error('Error en POST /api/gastos-recurrentes:', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 // Actualizar gasto recurrente
-app.put('/api/gastos-recurrentes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { descripcion, monto, tipo, categoria_id, dia_mes, activo } = req.body;
-    
-    let query, params;
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      query = 'UPDATE gastos_recurrentes SET descripcion = $1, monto = $2, tipo = $3, categoria_id = $4, dia_mes = $5, activo = $6 WHERE id = $7';
-      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo, id];
-    } else {
-      // MySQL
-      query = 'UPDATE gastos_recurrentes SET descripcion = ?, monto = ?, tipo = ?, categoria_id = ?, dia_mes = ?, activo = ? WHERE id = ?';
-      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo, id];
+app.put('/api/gastos-recurrentes/:id', (req, res) => {
+  const { id } = req.params;
+  const { descripcion, monto, tipo, categoria_id, dia_mes, activo } = req.body;
+  const query = 'UPDATE gastos_recurrentes SET descripcion = ?, monto = ?, tipo = ?, categoria_id = ?, dia_mes = ?, activo = ? WHERE id = ?';
+  
+  db.query(query, [descripcion, monto, tipo, categoria_id, dia_mes, activo, id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
     }
-    
-    const result = await executeQuery(query, params);
-    const affectedRows = process.env.DATABASE_URL ? result.rowCount : result.affectedRows;
-    
-    if (affectedRows === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
     res.json({ message: 'Gasto recurrente actualizado exitosamente' });
-  } catch (err) {
-    console.error('Error en PUT /api/gastos-recurrentes/:id:', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 // Eliminar gasto recurrente
-app.delete('/api/gastos-recurrentes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    let query, params;
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      query = 'DELETE FROM gastos_recurrentes WHERE id = $1';
-      params = [id];
-    } else {
-      // MySQL
-      query = 'DELETE FROM gastos_recurrentes WHERE id = ?';
-      params = [id];
+app.delete('/api/gastos-recurrentes/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'DELETE FROM gastos_recurrentes WHERE id = ?';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
     }
-    
-    const result = await executeQuery(query, params);
-    const affectedRows = process.env.DATABASE_URL ? result.rowCount : result.affectedRows;
-    
-    if (affectedRows === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
     res.json({ message: 'Gasto recurrente eliminado exitosamente' });
-  } catch (err) {
-    console.error('Error en DELETE /api/gastos-recurrentes/:id:', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 // Función para procesar gastos recurrentes automáticamente

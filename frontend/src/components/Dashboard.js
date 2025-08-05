@@ -68,7 +68,7 @@ const percentagePlugin = {
   }
 };
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 const Dashboard = ({ transactions, categories, dateRange }) => {
   const { isDarkMode } = useTheme();
