@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://gastos-frontend.onrender.com'] 
+    ? ['https://gastos-frontend-7362.onrender.com'] 
     : 'http://localhost:3000',
   credentials: true
 }));
