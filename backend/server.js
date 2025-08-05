@@ -45,14 +45,22 @@ const executeQuery = (query, params = []) => {
     if (process.env.DATABASE_URL) {
       // PostgreSQL
       db.query(query, params, (err, result) => {
-        if (err) reject(err);
-        else resolve(result.rows || result);
+        if (err) {
+          console.error('PostgreSQL Error:', err);
+          reject(err);
+        } else {
+          resolve(result.rows || result);
+        }
       });
     } else {
       // MySQL
       db.query(query, params, (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
+        if (err) {
+          console.error('MySQL Error:', err);
+          reject(err);
+        } else {
+          resolve(result);
+        }
       });
     }
   });
