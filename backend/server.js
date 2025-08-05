@@ -504,33 +504,44 @@ app.get('/api/resumen/mensual', async (req, res) => {
 // RUTAS PARA GASTOS RECURRENTES
 
 // Obtener todos los gastos recurrentes
-app.get('/api/gastos-recurrentes', (req, res) => {
-  const query = `
-    SELECT gr.*, c.nombre as categoria_nombre, c.color as categoria_color
-    FROM gastos_recurrentes gr
-    JOIN categorias c ON gr.categoria_id = c.id
-    ORDER BY gr.activo DESC, gr.dia_mes ASC
-  `;
-  
-  db.query(query, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+app.get('/api/gastos-recurrentes', async (req, res) => {
+  try {
+    const query = `
+      SELECT gr.*, c.nombre as categoria_nombre, c.color as categoria_color
+      FROM gastos_recurrentes gr
+      JOIN categorias c ON gr.categoria_id = c.id
+      ORDER BY gr.activo DESC, gr.dia_mes ASC
+    `;
+    
+    const results = await executeQuery(query);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/gastos-recurrentes:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Crear nuevo gasto recurrente
-app.post('/api/gastos-recurrentes', (req, res) => {
-  const { descripcion, monto, tipo, categoria_id, dia_mes, activo = true } = req.body;
-  const query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES (?, ?, ?, ?, ?, ?)';
-  
-  db.query(query, [descripcion, monto, tipo, categoria_id, dia_mes, activo], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.post('/api/gastos-recurrentes', async (req, res) => {
+  try {
+    const { descripcion, monto, tipo, categoria_id, dia_mes, activo = true } = req.body;
+    
+    let query, params;
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
+      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo];
+    } else {
+      // MySQL
+      query = 'INSERT INTO gastos_recurrentes (descripcion, monto, tipo, categoria_id, dia_mes, activo) VALUES (?, ?, ?, ?, ?, ?)';
+      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo];
     }
+    
+    const result = await executeQuery(query, params);
+    const insertId = process.env.DATABASE_URL ? result[0].id : result.insertId;
+    
     res.json({ 
-      id: result.insertId, 
+      id: insertId, 
       descripcion, 
       monto, 
       tipo, 
@@ -538,40 +549,69 @@ app.post('/api/gastos-recurrentes', (req, res) => {
       dia_mes, 
       activo 
     });
-  });
+  } catch (err) {
+    console.error('Error en POST /api/gastos-recurrentes:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Actualizar gasto recurrente
-app.put('/api/gastos-recurrentes/:id', (req, res) => {
-  const { id } = req.params;
-  const { descripcion, monto, tipo, categoria_id, dia_mes, activo } = req.body;
-  const query = 'UPDATE gastos_recurrentes SET descripcion = ?, monto = ?, tipo = ?, categoria_id = ?, dia_mes = ?, activo = ? WHERE id = ?';
-  
-  db.query(query, [descripcion, monto, tipo, categoria_id, dia_mes, activo, id], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.put('/api/gastos-recurrentes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descripcion, monto, tipo, categoria_id, dia_mes, activo } = req.body;
+    
+    let query, params;
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      query = 'UPDATE gastos_recurrentes SET descripcion = $1, monto = $2, tipo = $3, categoria_id = $4, dia_mes = $5, activo = $6 WHERE id = $7';
+      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo, id];
+    } else {
+      // MySQL
+      query = 'UPDATE gastos_recurrentes SET descripcion = ?, monto = ?, tipo = ?, categoria_id = ?, dia_mes = ?, activo = ? WHERE id = ?';
+      params = [descripcion, monto, tipo, categoria_id, dia_mes, activo, id];
     }
-    if (result.affectedRows === 0) {
+    
+    const result = await executeQuery(query, params);
+    const affectedRows = process.env.DATABASE_URL ? result.rowCount : result.affectedRows;
+    
+    if (affectedRows === 0) {
       return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
     res.json({ message: 'Gasto recurrente actualizado exitosamente' });
-  });
+  } catch (err) {
+    console.error('Error en PUT /api/gastos-recurrentes/:id:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Eliminar gasto recurrente
-app.delete('/api/gastos-recurrentes/:id', (req, res) => {
-  const { id } = req.params;
-  const query = 'DELETE FROM gastos_recurrentes WHERE id = ?';
-  
-  db.query(query, [id], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.delete('/api/gastos-recurrentes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let query, params;
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      query = 'DELETE FROM gastos_recurrentes WHERE id = $1';
+      params = [id];
+    } else {
+      // MySQL
+      query = 'DELETE FROM gastos_recurrentes WHERE id = ?';
+      params = [id];
     }
-    if (result.affectedRows === 0) {
+    
+    const result = await executeQuery(query, params);
+    const affectedRows = process.env.DATABASE_URL ? result.rowCount : result.affectedRows;
+    
+    if (affectedRows === 0) {
       return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
     res.json({ message: 'Gasto recurrente eliminado exitosamente' });
-  });
+  } catch (err) {
+    console.error('Error en DELETE /api/gastos-recurrentes/:id:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Función para procesar gastos recurrentes automáticamente
