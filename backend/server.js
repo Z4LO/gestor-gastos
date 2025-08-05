@@ -226,14 +226,15 @@ createTables();
 // RUTAS DE LA API
 
 // Obtener todas las categorías
-app.get('/api/categorias', (req, res) => {
-  const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
-  db.query(query, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+app.get('/api/categorias', async (req, res) => {
+  try {
+    const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
+    const results = await executeQuery(query);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/categorias:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Crear nueva categoría
@@ -250,54 +251,83 @@ app.post('/api/categorias', (req, res) => {
 });
 
 // Obtener todas las transacciones
-app.get('/api/transacciones', (req, res) => {
-  const { fechaInicio, fechaFin, tipo } = req.query;
-  
-  let query = `
-    SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
-    FROM transacciones t
-    JOIN categorias c ON t.categoria_id = c.id
-    WHERE 1=1
-  `;
-  
-  const params = [];
-  
-  if (fechaInicio) {
-    query += ' AND t.fecha >= ?';
-    params.push(fechaInicio);
-  }
-  
-  if (fechaFin) {
-    query += ' AND t.fecha <= ?';
-    params.push(fechaFin);
-  }
-  
-  if (tipo) {
-    query += ' AND t.tipo = ?';
-    params.push(tipo);
-  }
-  
-  query += ' ORDER BY t.fecha DESC, t.created_at DESC';
-  
-  db.query(query, params, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.get('/api/transacciones', async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, tipo } = req.query;
+    
+    let query = `
+      SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
+      FROM transacciones t
+      JOIN categorias c ON t.categoria_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (fechaInicio) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha >= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha >= ?';
+      }
+      params.push(fechaInicio);
+      paramIndex++;
     }
+    
+    if (fechaFin) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha <= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha <= ?';
+      }
+      params.push(fechaFin);
+      paramIndex++;
+    }
+    
+    if (tipo) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.tipo = $${paramIndex}`;
+      } else {
+        query += ' AND t.tipo = ?';
+      }
+      params.push(tipo);
+    }
+    
+    query += ' ORDER BY t.fecha DESC, t.created_at DESC';
+    
+    const results = await executeQuery(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/transacciones:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Crear nueva transacción
-app.post('/api/transacciones', (req, res) => {
-  const { descripcion, monto, tipo, categoria_id, fecha } = req.body;
-  const query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES (?, ?, ?, ?, ?)';
-  
-  db.query(query, [descripcion, monto, tipo, categoria_id, fecha], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.post('/api/transacciones', async (req, res) => {
+  try {
+    const { descripcion, monto, tipo, categoria_id, fecha } = req.body;
+    
+    let query, params;
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES ($1, $2, $3, $4, $5) RETURNING id';
+      params = [descripcion, monto, tipo, categoria_id, fecha];
+    } else {
+      // MySQL
+      query = 'INSERT INTO transacciones (descripcion, monto, tipo, categoria_id, fecha) VALUES (?, ?, ?, ?, ?)';
+      params = [descripcion, monto, tipo, categoria_id, fecha];
     }
-    res.json({ id: result.insertId, descripcion, monto, tipo, categoria_id, fecha });
-  });
+    
+    const result = await executeQuery(query, params);
+    const insertId = process.env.DATABASE_URL ? result[0].id : result.insertId;
+    
+    res.json({ id: insertId, descripcion, monto, tipo, categoria_id, fecha });
+  } catch (err) {
+    console.error('Error en POST /api/transacciones:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Actualizar transacción
@@ -369,72 +399,106 @@ app.delete('/api/categorias/:id', (req, res) => {
 
 
 // Obtener resumen de gastos por categoría
-app.get('/api/resumen/categorias', (req, res) => {
-  const { fechaInicio, fechaFin } = req.query;
-  
-  let query = `
-    SELECT 
-      c.nombre,
-      c.color,
-      t.tipo,
-      SUM(t.monto) as total,
-      COUNT(t.id) as cantidad
-    FROM transacciones t
-    JOIN categorias c ON t.categoria_id = c.id
-    WHERE 1=1
-  `;
-  
-  const params = [];
-  
-  if (fechaInicio) {
-    query += ' AND t.fecha >= ?';
-    params.push(fechaInicio);
-  }
-  
-  if (fechaFin) {
-    query += ' AND t.fecha <= ?';
-    params.push(fechaFin);
-  }
-  
-  query += ' GROUP BY c.id, c.nombre, c.color, t.tipo ORDER BY total DESC';
-  
-  db.query(query, params, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.get('/api/resumen/categorias', async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    
+    let query = `
+      SELECT 
+        c.nombre,
+        c.color,
+        t.tipo,
+        SUM(t.monto) as total,
+        COUNT(t.id) as cantidad
+      FROM transacciones t
+      JOIN categorias c ON t.categoria_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (fechaInicio) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha >= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha >= ?';
+      }
+      params.push(fechaInicio);
+      paramIndex++;
     }
+    
+    if (fechaFin) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha <= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha <= ?';
+      }
+      params.push(fechaFin);
+    }
+    
+    query += ' GROUP BY c.id, c.nombre, c.color, t.tipo ORDER BY total DESC';
+    
+    const results = await executeQuery(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/resumen/categorias:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Obtener resumen mensual
-app.get('/api/resumen/mensual', (req, res) => {
-  const { ano } = req.query;
-  
-  let query = `
-    SELECT 
-      MONTH(fecha) as mes,
-      YEAR(fecha) as ano,
-      tipo,
-      SUM(monto) as total
-    FROM transacciones
-    WHERE 1=1
-  `;
-  
-  const params = [];
-  
-  if (ano) {
-    query += ' AND YEAR(fecha) = ?';
-    params.push(ano);
-  }
-  
-  query += ' GROUP BY YEAR(fecha), MONTH(fecha), tipo ORDER BY ano DESC, mes DESC';
-  
-  db.query(query, params, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.get('/api/resumen/mensual', async (req, res) => {
+  try {
+    const { ano } = req.query;
+    
+    let query;
+    const params = [];
+    
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      query = `
+        SELECT 
+          EXTRACT(MONTH FROM fecha) as mes,
+          EXTRACT(YEAR FROM fecha) as ano,
+          tipo,
+          SUM(monto) as total
+        FROM transacciones
+        WHERE 1=1
+      `;
+      
+      if (ano) {
+        query += ' AND EXTRACT(YEAR FROM fecha) = $1';
+        params.push(ano);
+      }
+      
+      query += ' GROUP BY EXTRACT(YEAR FROM fecha), EXTRACT(MONTH FROM fecha), tipo ORDER BY ano DESC, mes DESC';
+    } else {
+      // MySQL
+      query = `
+        SELECT 
+          MONTH(fecha) as mes,
+          YEAR(fecha) as ano,
+          tipo,
+          SUM(monto) as total
+        FROM transacciones
+        WHERE 1=1
+      `;
+      
+      if (ano) {
+        query += ' AND YEAR(fecha) = ?';
+        params.push(ano);
+      }
+      
+      query += ' GROUP BY YEAR(fecha), MONTH(fecha), tipo ORDER BY ano DESC, mes DESC';
     }
+    
+    const results = await executeQuery(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/resumen/mensual:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // RUTAS PARA GASTOS RECURRENTES
