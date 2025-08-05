@@ -1,0 +1,25 @@
+services:
+  # Base de datos PostgreSQL
+  - type: pserv
+    name: gastos-db
+    env: node
+    plan: free
+    
+  # Backend API
+  - type: web
+    name: gastos-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+    
+  # Frontend React
+  - type: web
+    name: gastos-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/build
+    plan: free

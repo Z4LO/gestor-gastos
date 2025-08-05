@@ -1,5 +1,6 @@
 const express = require('express');
 const mysql = require('mysql2');
+const { Pool } = require('pg');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -7,103 +8,217 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://gastos-frontend-7362.onrender.com'] 
+    : 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
-// Configuración de la base de datos
-const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'gastos_personales',
-  port: process.env.DB_PORT || 3306,
-  authPlugins: {
-    mysql_native_password: () => require('mysql2/lib/auth_plugins').mysql_native_password
-  }
-});
+// Configuración de base de datos (MySQL local y PostgreSQL para producción)
+let db;
+
+if (process.env.DATABASE_URL) {
+  // PostgreSQL para producción (Render)
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+} else {
+  // MySQL para desarrollo local
+  db = mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'gastos_personales',
+    port: process.env.DB_PORT || 3306,
+    authPlugins: {
+      mysql_native_password: () => require('mysql2/lib/auth_plugins').mysql_native_password
+    }
+  });
+}
+
+// Función para ejecutar queries que funciona con ambas bases de datos
+const executeQuery = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL
+      db.query(query, params, (err, result) => {
+        if (err) {
+          console.error('PostgreSQL Error:', err);
+          reject(err);
+        } else {
+          resolve(result.rows || result);
+        }
+      });
+    } else {
+      // MySQL
+      db.query(query, params, (err, result) => {
+        if (err) {
+          console.error('MySQL Error:', err);
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    }
+  });
+};
 
 // Conectar a la base de datos
-db.connect((err) => {
-  if (err) {
-    console.error('Error conectando a la base de datos:', err);
-    return;
-  }
-  console.log('Conectado a la base de datos MySQL');
-});
+if (process.env.DATABASE_URL) {
+  // PostgreSQL - no necesita conexión explícita
+  console.log('Usando PostgreSQL (Render)');
+} else {
+  // MySQL
+  db.connect((err) => {
+    if (err) {
+      console.error('Error conectando a la base de datos:', err);
+      return;
+    }
+    console.log('Conectado a la base de datos MySQL');
+  });
+}
 
 // Crear tablas si no existen
-const createTables = () => {
-  const categoriesTable = `
-    CREATE TABLE IF NOT EXISTS categorias (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      nombre VARCHAR(100) NOT NULL UNIQUE,
-      tipo ENUM('ingreso', 'egreso') NOT NULL,
-      color VARCHAR(7) DEFAULT '#3498db',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+const createTables = async () => {
+  try {
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL queries
+      const categoriesTable = `
+        CREATE TABLE IF NOT EXISTS categorias (
+          id SERIAL PRIMARY KEY,
+          nombre VARCHAR(100) NOT NULL UNIQUE,
+          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
+          color VARCHAR(7) DEFAULT '#3498db',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
 
-  const transactionsTable = `
-    CREATE TABLE IF NOT EXISTS transacciones (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      descripcion VARCHAR(255) NOT NULL,
-      monto DECIMAL(10,2) NOT NULL,
-      tipo ENUM('ingreso', 'egreso') NOT NULL,
-      categoria_id INT,
-      fecha DATE NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (categoria_id) REFERENCES categorias(id)
-    )
-  `;
+      const transactionsTable = `
+        CREATE TABLE IF NOT EXISTS transacciones (
+          id SERIAL PRIMARY KEY,
+          descripcion VARCHAR(255) NOT NULL,
+          monto DECIMAL(10,2) NOT NULL,
+          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
+          categoria_id INTEGER REFERENCES categorias(id),
+          fecha DATE NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
 
-  const recurringExpensesTable = `
-    CREATE TABLE IF NOT EXISTS gastos_recurrentes (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      descripcion VARCHAR(255) NOT NULL,
-      monto DECIMAL(10,2) NOT NULL,
-      tipo ENUM('ingreso', 'egreso') NOT NULL,
-      categoria_id INT,
-      dia_mes INT NOT NULL DEFAULT 1,
-      activo BOOLEAN DEFAULT TRUE,
-      ultimo_procesado DATE NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (categoria_id) REFERENCES categorias(id),
-      CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
-    )
-  `;
+      const recurringExpensesTable = `
+        CREATE TABLE IF NOT EXISTS gastos_recurrentes (
+          id SERIAL PRIMARY KEY,
+          descripcion VARCHAR(255) NOT NULL,
+          monto DECIMAL(10,2) NOT NULL,
+          tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ingreso', 'egreso')),
+          categoria_id INTEGER REFERENCES categorias(id),
+          dia_mes INTEGER NOT NULL DEFAULT 1,
+          activo BOOLEAN DEFAULT TRUE,
+          ultimo_procesado DATE NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
+        )
+      `;
 
-  db.query(categoriesTable, (err) => {
-    if (err) console.error('Error creando tabla categorias:', err);
-  });
+      await executeQuery(categoriesTable);
+      await executeQuery(transactionsTable);
+      await executeQuery(recurringExpensesTable);
 
-  db.query(transactionsTable, (err) => {
-    if (err) console.error('Error creando tabla transacciones:', err);
-  });
+      // Insertar categorías por defecto para PostgreSQL
+      const insertDefault = `
+        INSERT INTO categorias (nombre, tipo, color) VALUES 
+        ($1, $2, $3), ($4, $5, $6), ($7, $8, $9), ($10, $11, $12), ($13, $14, $15),
+        ($16, $17, $18), ($19, $20, $21), ($22, $23, $24), ($25, $26, $27), ($28, $29, $30)
+        ON CONFLICT (nombre) DO NOTHING
+      `;
+      
+      await executeQuery(insertDefault, [
+        'Salario', 'ingreso', '#27ae60',
+        'Freelance', 'ingreso', '#2ecc71',
+        'Inversiones', 'ingreso', '#16a085',
+        'Alimentos', 'egreso', '#e74c3c',
+        'Transporte', 'egreso', '#f39c12',
+        'Entretenimiento', 'egreso', '#9b59b6',
+        'Salud', 'egreso', '#e67e22',
+        'Educación', 'egreso', '#3498db',
+        'Servicios', 'egreso', '#34495e',
+        'Compras', 'egreso', '#95a5a6'
+      ]);
 
-  db.query(recurringExpensesTable, (err) => {
-    if (err) console.error('Error creando tabla gastos_recurrentes:', err);
-  });
+    } else {
+      // MySQL queries (original)
+      const categoriesTable = `
+        CREATE TABLE IF NOT EXISTS categorias (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nombre VARCHAR(100) NOT NULL UNIQUE,
+          tipo ENUM('ingreso', 'egreso') NOT NULL,
+          color VARCHAR(7) DEFAULT '#3498db',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
 
-  // Insertar categorías por defecto
-  const defaultCategories = [
-    ['Salario', 'ingreso', '#27ae60'],
-    ['Freelance', 'ingreso', '#2ecc71'],
-    ['Inversiones', 'ingreso', '#16a085'],
-    ['Alimentos', 'egreso', '#e74c3c'],
-    ['Transporte', 'egreso', '#f39c12'],
-    ['Entretenimiento', 'egreso', '#9b59b6'],
-    ['Salud', 'egreso', '#e67e22'],
-    ['Educación', 'egreso', '#3498db'],
-    ['Servicios', 'egreso', '#34495e'],
-    ['Compras', 'egreso', '#95a5a6']
-  ];
+      const transactionsTable = `
+        CREATE TABLE IF NOT EXISTS transacciones (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          descripcion VARCHAR(255) NOT NULL,
+          monto DECIMAL(10,2) NOT NULL,
+          tipo ENUM('ingreso', 'egreso') NOT NULL,
+          categoria_id INT,
+          fecha DATE NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+        )
+      `;
 
-  const insertDefault = `INSERT IGNORE INTO categorias (nombre, tipo, color) VALUES ?`;
-  db.query(insertDefault, [defaultCategories], (err) => {
-    if (err) console.error('Error insertando categorías por defecto:', err);
-  });
+      const recurringExpensesTable = `
+        CREATE TABLE IF NOT EXISTS gastos_recurrentes (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          descripcion VARCHAR(255) NOT NULL,
+          monto DECIMAL(10,2) NOT NULL,
+          tipo ENUM('ingreso', 'egreso') NOT NULL,
+          categoria_id INT,
+          dia_mes INT NOT NULL DEFAULT 1,
+          activo BOOLEAN DEFAULT TRUE,
+          ultimo_procesado DATE NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (categoria_id) REFERENCES categorias(id),
+          CONSTRAINT chk_dia_mes CHECK (dia_mes BETWEEN 1 AND 28)
+        )
+      `;
+
+      await executeQuery(categoriesTable);
+      await executeQuery(transactionsTable);
+      await executeQuery(recurringExpensesTable);
+
+      // Insertar categorías por defecto para MySQL
+      const defaultCategories = [
+        ['Salario', 'ingreso', '#27ae60'],
+        ['Freelance', 'ingreso', '#2ecc71'],
+        ['Inversiones', 'ingreso', '#16a085'],
+        ['Alimentos', 'egreso', '#e74c3c'],
+        ['Transporte', 'egreso', '#f39c12'],
+        ['Entretenimiento', 'egreso', '#9b59b6'],
+        ['Salud', 'egreso', '#e67e22'],
+        ['Educación', 'egreso', '#3498db'],
+        ['Servicios', 'egreso', '#34495e'],
+        ['Compras', 'egreso', '#95a5a6']
+      ];
+
+      const insertDefault = `INSERT IGNORE INTO categorias (nombre, tipo, color) VALUES ?`;
+      await executeQuery(insertDefault, [defaultCategories]);
+    }
+    
+    console.log('Tablas creadas y datos iniciales insertados');
+  } catch (err) {
+    console.error('Error creando tablas:', err);
+  }
 };
 
 createTables();
@@ -111,14 +226,15 @@ createTables();
 // RUTAS DE LA API
 
 // Obtener todas las categorías
-app.get('/api/categorias', (req, res) => {
-  const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
-  db.query(query, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+app.get('/api/categorias', async (req, res) => {
+  try {
+    const query = 'SELECT * FROM categorias ORDER BY tipo, nombre';
+    const results = await executeQuery(query);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/categorias:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Crear nueva categoría
@@ -135,41 +251,57 @@ app.post('/api/categorias', (req, res) => {
 });
 
 // Obtener todas las transacciones
-app.get('/api/transacciones', (req, res) => {
-  const { fechaInicio, fechaFin, tipo } = req.query;
-  
-  let query = `
-    SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
-    FROM transacciones t
-    JOIN categorias c ON t.categoria_id = c.id
-    WHERE 1=1
-  `;
-  
-  const params = [];
-  
-  if (fechaInicio) {
-    query += ' AND t.fecha >= ?';
-    params.push(fechaInicio);
-  }
-  
-  if (fechaFin) {
-    query += ' AND t.fecha <= ?';
-    params.push(fechaFin);
-  }
-  
-  if (tipo) {
-    query += ' AND t.tipo = ?';
-    params.push(tipo);
-  }
-  
-  query += ' ORDER BY t.fecha DESC, t.created_at DESC';
-  
-  db.query(query, params, (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+app.get('/api/transacciones', async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, tipo } = req.query;
+    
+    let query = `
+      SELECT t.*, c.nombre as categoria_nombre, c.color as categoria_color
+      FROM transacciones t
+      JOIN categorias c ON t.categoria_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (fechaInicio) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha >= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha >= ?';
+      }
+      params.push(fechaInicio);
+      paramIndex++;
     }
+    
+    if (fechaFin) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.fecha <= $${paramIndex}`;
+      } else {
+        query += ' AND t.fecha <= ?';
+      }
+      params.push(fechaFin);
+      paramIndex++;
+    }
+    
+    if (tipo) {
+      if (process.env.DATABASE_URL) {
+        query += ` AND t.tipo = $${paramIndex}`;
+      } else {
+        query += ' AND t.tipo = ?';
+      }
+      params.push(tipo);
+    }
+    
+    query += ' ORDER BY t.fecha DESC, t.created_at DESC';
+    
+    const results = await executeQuery(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error en GET /api/transacciones:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Crear nueva transacción
