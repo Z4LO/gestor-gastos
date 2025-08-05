@@ -17,7 +17,7 @@ app.use(express.json());
 
 // Configuración de base de datos PostgreSQL
 const db = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/gastos_personales',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:root@localhost:8082/postgres',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
@@ -33,6 +33,7 @@ const executeQuery = async (query, params = []) => {
 };
 
 console.log('Usando PostgreSQL');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Configurado (Render)' : 'Local fallback');
 
 // Crear tablas si no existen (PostgreSQL)
 const createTables = async () => {
